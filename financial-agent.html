@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Local Financial Agent — Editable Formulas & Chat (GPT-5 preselected)</title>
+  <style>
+    :root{
+      --gap:12px;--left-w:34%;--mid-w:46%;--chat-w:20%;
+      --left-col-width:36px;--col-width:220px;
+      --inputs-font-size:12px;--inputs-input-font-size:12px;
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:#222;background:#fff;}
+    header{padding:10px 14px;border-bottom:1px solid #e6e6e6;background:#fafafa;}
+    header h1{margin:0 0 6px 0;font-size:16px;}
+    header p{margin:0;color:#555;font-size:13px;}
+    .toolbar{padding:8px 14px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #f0f0f0;}
+    .btn{padding:7px 10px;background:#0366d6;color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:13px;}
+    .btn:disabled{opacity:.55;cursor:not-allowed;}
+    .main{display:flex;gap:var(--gap);padding:12px;box-sizing:border-box;height:calc(100vh - 110px);}
+    .col{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;}
+    .left{flex:0 0 var(--left-w);min-width:220px;max-width:44%;}
+    .mid{flex:0 0 var(--mid-w);min-width:360px;overflow:auto;}
+    .chat{flex:0 0 var(--chat-w);min-width:220px;max-width:320px;}
+    .section-title{font-weight:600;margin:0 0 8px 0;font-size:14px;}
+    .inputs-wrap{width:100%;overflow:auto;position:relative;height:100%;}
+    table.inputs-table{border-collapse:collapse;width:100%;min-width:calc(var(--left-col-width)+var(--col-width)*2);table-layout:fixed;font-size:var(--inputs-font-size);}
+    table.inputs-table th,table.inputs-table td{border:1px solid #e6e6e6;padding:6px 6px;text-align:left;white-space:nowrap;vertical-align:middle;}
+    thead th.top-header{position:sticky;top:0;z-index:6;background:#f6f8fa;text-align:center;font-weight:600;}
+    td.row-num,th.corner{position:sticky;left:0;z-index:7;width:var(--left-col-width);min-width:var(--left-col-width);max-width:var(--left-col-width);background:#f7f7f7;text-align:center;font-weight:600;border-right:1px solid #e6e6e6;padding:6px 4px;}
+    th.corner{top:0;z-index:9;}
+    th.label-col,td.label-col{position:sticky;left:var(--left-col-width);z-index:5;background:#fff;min-width:calc(var(--col-width));max-width:calc(var(--col-width));overflow:hidden;text-overflow:ellipsis;}
+    th.value-col,td.value-col{min-width:calc(var(--col-width));max-width:calc(var(--col-width));overflow:hidden;text-overflow:ellipsis;}
+    .cell-span{display:inline-block;width:100%;height:100%;padding:2px 0;box-sizing:border-box;}
+    .inputs-table input,.inputs-table select{box-sizing:border-box;padding:6px;width:100%;border-radius:4px;border:1px solid #ddd;font-size:var(--inputs-input-font-size);background:#fff;}
+    .hidden{display:none!important;}
+    .formula-list{display:flex;flex-direction:column;gap:8px;overflow:auto;}
+    .formula-block{padding:10px;border:1px dashed #c7d2fe;border-radius:8px;background:#fbfbff;cursor:default;}
+    .formula-title{font-weight:600;}
+    .formula-block textarea{width:100%;height:48px;box-sizing:border-box;margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;}
+    .formula-grid{margin-top:8px;overflow:auto;}
+    .formula-grid table{width:100%;border-collapse:collapse;}
+    .formula-grid th,.formula-grid td{border:1px solid #e6e6e6;padding:6px;vertical-align:top;font-size:13px;}
+    .formula-grid textarea{width:100%;min-height:28px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;box-sizing:border-box;font-size:13px;}
+    .ai-badge{display:inline-block;background:#e6f0ff;color:#034d9b;border-radius:12px;padding:2px 8px;font-size:12px;margin-bottom:6px;}
+    .preview{margin-top:12px;overflow:auto;max-height:40vh;}
+    .preview table{width:100%;border-collapse:collapse;}
+    .preview th,.preview td{border:1px solid #e6e6e6;padding:6px;font-size:13px;}
+    .assumptions{margin-top:12px;padding:8px;border:1px solid #eee;border-radius:6px;background:#fafafa;font-size:13px;overflow:auto;max-height:120px;}
+    .highlight{background:linear-gradient(90deg,#fff6d6,#ffd98a)!important;box-shadow:0 8px 24px rgba(255,140,0,0.18),0 0 0 3px rgba(255,140,0,0.06) inset;border-radius:6px;border:2px solid rgba(255,140,0,0.9);color:#1e1e1e;font-weight:700;transition:background .12s ease,box-shadow .12s ease;transform:translateZ(0);}
+    .note{color:#555;font-size:13px;margin-top:8px;}
+    .chat-body{flex:1;display:flex;flex-direction:column;gap:8px;overflow:auto;padding-bottom:6px;}
+    .msg{padding:8px 10px;border-radius:10px;max-width:100%;font-size:13px;line-height:1.3;}
+    .msg.user{background:#0366d6;color:#fff;margin-left:auto;text-align:right;}
+    .msg.agent{background:#f1f3f5;color:#111;margin-right:auto;text-align:left;}
+    .chat-input{display:flex;gap:8px;margin-top:8px;}
+    .chat-input input,.chat-input textarea{flex:1;padding:8px;border-radius:6px;border:1px solid #ddd;}
+    .msg .error { color: #b00020; font-weight:700; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Local Financial Agent</h1>
+    <p>Inputs are Excel-like. Generate a model via chat ("generate"). Active Scenario is a dropdown in Inputs (cell B18).</p>
+  </header>
+
+  <div class="toolbar">
+    <button id="btn-apply-formulas" class="btn" disabled>Apply Edited Formulas</button>
+    <button id="btn-recompute-preview" class="btn" disabled>Recompute Preview</button>
+    <button id="btn-export" class="btn" disabled>Export .xlsx (with formulas)</button>
+    <div style="flex:1"></div>
+    <div class="note">Profit = Gross Profit - Operating Expense · Cash Flow = Profit × (1 - Tax Rate)</div>
+  </div>
+
+  <div class="main">
+    <div class="col left">
+      <div class="section-title">Inputs (Excel-like)</div>
+      <div id="inputs-container" class="inputs-wrap"></div>
+      <div class="note">Active Scenario is B18. Change it via the dropdown (Bear/Base/Bull). If a model is generated, changing it updates preview.</div>
+    </div>
+
+    <div class="col mid" id="mid-content" aria-hidden="true">
+      <div id="formulas-section" class="hidden">
+        <div class="section-title">Formula Templates (editable)</div>
+        <div id="formulas-area" class="formula-list"></div>
+      </div>
+
+      <div id="formula-grid-section" class="hidden" style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="section-title">Model_Output Formulas (cell-level editable)</div>
+          <div style="font-size:12px;color:#666;">Edit, then click "Apply Edited Formulas"</div>
+        </div>
+        <div id="formula-grid" class="formula-grid"></div>
+      </div>
+
+      <div id="assumptions-section" style="margin-top:12px;">
+        <div class="section-title">Assumptions</div>
+        <div id="assumptions-box" class="assumptions"></div>
+      </div>
+
+      <div id="scenario-diff-section" style="margin-top:8px;">
+        <div class="section-title">Scenario Differences</div>
+        <div id="scenario-diff" class="assumptions"></div>
+      </div>
+
+      <div id="preview-section" class="hidden" style="margin-top:10px;">
+        <div class="section-title" id="preview-title">Finance Model Output Preview: Base</div>
+        <div id="preview-numeric" class="preview"></div>
+      </div>
+
+      <div style="margin-top:10px;font-size:13px;color:#333;">
+        <strong>Disclaimer:</strong> This model is for planning support, not financial advice. Validate results before external use.
+      </div>
+    </div>
+
+    <div class="col chat">
+      <div class="section-title">Agent Chat</div>
+      <div id="chat-body" class="chat-body" aria-live="polite"></div>
+
+      <div class="chat-input">
+        <input id="chat-input" placeholder='e.g. "Based on the Inputs sheet, generate a 3-year financial model..." or "verify" / "recover"' />
+        <button id="chat-send" class="btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script>
+  // --- Data & helpers ---
+  const FIXED_INPUTS_AOA = [
+    ["🟦 Basic Business Assumptions",""],
+    ["Model Time Horizon (Years)","3"],
+    ["Starting Year","2025"],
+    ["Currency","USD"],
+    ["🟦 Revenue Assumptions",""],
+    ["Initial Annual Revenue","10,000,000"],
+    ["Revenue Recognition","Annual"],
+    ["🟦 Cost Assumptions",""],
+    ["Gross Margin (%)","65%"],
+    ["Operating Expense Ratio (%)","25%"],
+    ["Tax Rate (%)","20%"],
+    ["🟦 Scenario Growth Rates",""],
+    ["Scenario","Revenue Growth Rate"],
+    ["Bear","5%"],
+    ["Base","12%"],
+    ["Bull","20%"],
+    ["🟦 Active Scenario Selector",""],
+    ["Active Scenario","Base"]
+  ];
+  const FIXED_SCENARIOS = ['Bear','Base','Bull'];
+  const DEFAULT_LLM_MODEL = 'gpt-5';
+
+  function cloneAoa(a){ return JSON.parse(JSON.stringify(a)); }
+  function parseValueToTyped(value){
+    if (value==null) return {t:'s', v:''};
+    const s = String(value).trim();
+    if (s==='') return {t:'s', v:''};
+    const percent = s.match(/^(-?\d+(?:[\.,]\d+)?)\s*%$/);
+    if (percent) return {t:'n', v: parseFloat(percent[1].replace(',', '.'))/100, z:'0.00%'};
+    const numMatch = s.match(/^-?[\d,]+(?:\.\d+)?$/);
+    if (numMatch){ const n = parseFloat(s.replace(/,/g,'arded')); if (!isNaN(n)) return {t:'n', v:n}; }
+    const yearMatch = s.match(/^\d{4}$/);
+    if (yearMatch) return {t:'n', v: parseInt(s,10)};
+    return {t:'s', v:s};
+  }
+  function aoaToSheetWithTypes(aoa){
+    const ws={}, range={s:{r:0,c:0}, e:{r:0,c:0}};
+    for (let R=0; R<aoa.length; R++){
+      for (let C=0; C<(aoa[R]?aoa[R].length:0); C++){
+        if (R>range.e.r) range.e.r = R;
+        if (C>range.e.c) range.e.c = C;
+        const val = aoa[R][C];
+        const addr = XLSX.utils.encode_cell({r:R,c:C});
+        const p = parseValueToTyped(val);
+        const cell = {t: p.t, v: p.v};
+        if (p.z) cell.z = p.z;
+        ws[addr] = cell;
+      }
+    }
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    return ws;
+  }
+  function findRowIndexByLabel(aoa,label){
+    for (let i=0;i<aoa.length;i++){ if (!aoa[i] || typeof aoa[i][0] === 'undefined') continue; if (String(aoa[i][0]).trim() === label) return i; }
+    return -1;
+  }
+  function findScenarioTableBounds(aoa){
+    for (let i=0;i<aoa.length;i++){
+      if (!aoa[i]) continue;
+      const a = String(aoa[i][0] || '').trim();
+      const b = String(aoa[i][1] || '').trim().toLowerCase();
+      if (a === 'Scenario' && b.includes('revenue')) {
+        let start = i+1, end = start-1;
+        for (let r = start; r < aoa.length; r++){
+          const cellA = aoa[r] && typeof aoa[r][0] !== 'undefined' ? String(aoa[r][0]).trim() : '';
+          if (!cellA) break;
+          if (cellA.startsWith('🟦') || cellA.toLowerCase().includes('active scenario') || cellA.toLowerCase().includes('selector')) break;
+          end = r;
+        }
+        if (end >= start) return {start, end};
+        return null;
+      }
+    }
+    return null;
+  }
+  function extractSimpleInputCells(aoa){ const map = {}; const labels = ['Model Time Horizon (Years)','Starting Year','Currency','Initial Annual Revenue','Revenue Recognition','Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)','Active Scenario']; labels.forEach(label => { const r = findRowIndexByLabel(aoa, label); if (r !== -1) map[label] = {r: r, c: 1, raw: aoa[r][1]}; }); return map; }
+  function validateInputs(aoa){ const errors = [], warnings = []; const get = (label) => { const r = findRowIndexByLabel(aoa, label); return r>=0 ? String(aoa[r][1] || '').trim() : ''; }; const required = ['Model Time Horizon (Years)','Starting Year','Initial Annual Revenue','Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)','Active Scenario']; required.forEach(label => { const v = get(label); if (!v) errors.push({label, message: `${label} is required.`}); }); const scBounds = findScenarioTableBounds(aoa); if (!scBounds) { errors.push({label:'Scenario Growth Rates', message: 'Scenario Growth Rates table is missing or malformed.'}); } else { const found = {}; for (let r=scBounds.start; r<=scBounds.end; r++){ const name = String(aoa[r][0] || '').trim(); if (FIXED_SCENARIOS.includes(name)) { found[name] = true; const valRaw = String(aoa[r][1] || '').trim(); const parsed = parseValueToTyped(valRaw); if (parsed.t !== 'n') { errors.push({label:`Scenario "${name}"', message: `Growth rate for scenario "${name}" must be a percentage or numeric value (e.g. 12%).`}); } } } FIXED_SCENARIOS.forEach(s => { if (!found[s]) errors.push({label:'Scenario Growth Rates', message:`Scenario "${s}" not found in Scenario Growth Rates table.`}); }); } const revRaw = get('Initial Annual Revenue'); const revParsed = parseValueToTyped(revRaw); if (revParsed.t !== 'n') errors.push({label:'Initial Annual Revenue', message:'Initial Annual Revenue must be numeric (e.g. 1000000).'}); else if (revParsed.v <= 0) errors.push({label:'Initial Annual Revenue', message:'Initial Annual Revenue must be greater than 0.'}); const pctLabels = ['Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)']; pctLabels.forEach(label => { const raw = get(label); const p = parseValueToTyped(raw); if (p.t !== 'n') { errors.push({label, message: `${label} must be a percentage (e.g. 65%).`}); return; } const v = p.v; if (v < 0 || v > 1) errors.push({label, message: `${label} must be between 0% and 100%.`}); }); const active = get('Active Scenario'); if (active && !FIXED_SCENARIOS.includes(active)) errors.push({label:'Active Scenario', message:`Active Scenario must be one of ${FIXED_SCENARIOS.join(', ')}.`}); return {errors, warnings, scBounds}; }
+  let rawAoa = cloneAoa(FIXED_INPUTS_AOA);
+  let currentWorkbook = null;
+  let lastBuildDetails = null;
+  const inputsContainer = document.getElementById('inputs-container');
+  const midContent = document.getElementById('mid-content');
+  const formulasArea = document.getElementById('formulas-area');
+  const formulaGrid = document.getElementById('formula-grid');
+  const previewNumeric = document.getElementById('preview-numeric');
+  const assumptionsBox = document.getElementById('assumptions-box');
+  const scenarioDiffBox = document.getElementById('scenario-diff');
+  const previewTitle = document.getElementById('preview-title');
+  function renderInputsTableWithHeaders(aoa){ const wrapper = document.createElement('div'); wrapper.className='inputs-wrap'; wrapper.style.height='100%'; const table = document.createElement('table'); table.className='inputs-table'; const thead = document.createElement('thead'); const trHead = document.createElement('tr'); const thCorner = document.createElement('th'); thCorner.className='corner top-header'; thCorner.textContent=''; trHead.appendChild(thCorner); const thA = document.createElement('th'); thA.className='top-header label-col'; thA.textContent='A'; trHead.appendChild(thA); const thB = document.createElement('th'); thB.className='top-header value-col'; thB.textContent='B'; trHead.appendChild(thB); thead.appendChild(trHead); table.appendChild(thead); const tbody = document.createElement('tbody'); const activeRowIdx = findRowIndexByLabel(aoa, 'Active Scenario'); for (let r=0;r<aoa.length;r++){ const row = aoa[r]||[]; const tr = document.createElement('tr'); const tdNum = document.createElement('td'); tdNum.className='row-num'; tdNum.textContent=(r+1).toString(); tr.appendChild(tdNum); const cellTag = (r===0)?'th':'td'; const thLabel = document.createElement(cellTag); thLabel.className='label-col'; const spanLabel = document.createElement('span'); spanLabel.className='cell-span'; spanLabel.dataset.row=r; spanLabel.dataset.col=0; spanLabel.textContent = (typeof row[0]==='undefined'||row[0]===null)?'':String(row[0]); thLabel.appendChild(spanLabel); tr.appendChild(thLabel); const tdValue = document.createElement('td'); tdValue.className='value-col'; const spanVal = document.createElement('span'); spanVal.className='cell-span'; spanVal.dataset.row=r; spanVal.dataset.col=1; const text = (typeof row[1]==='undefined'||row[1]===null)?'':String(row[1]); if (r === activeRowIdx) { const sel = document.createElement('select'); sel.dataset.row = r; sel.dataset.col = 1; ['Bear','Base','Bull'].forEach(opt => { const o = document.createElement('option'); o.value = opt; o.textContent = opt; if (String(text).trim() === opt) o.selected = true; sel.appendChild(o); }); sel.addEventListener('change', (e) => { rawAoa[r][1] = e.target.value; previewTitle.textContent = `Finance Model Output Preview: ${e.target.value}`; collectInputsToRawAoa(); const validation = validateInputs(rawAoa); if (validation.errors.length) { clearOutputsOnValidation(); const msg = validation.errors.map(er => `• ${er.message}`).join('<br/>'); chatPostAgent(`<b class="error">Input validation error:</b><br/>${msg}`); const first = validation.errors[0]; const idx = findRowIndexByLabel(rawAoa, first.label || ''); if (typeof idx === 'number' && idx >= 0) highlightAndCenterRow(inputsContainer, idx, 1); return; } if (currentWorkbook && lastBuildDetails && hasAnyFormula(currentWorkbook.Sheets['Model_Output'])) { previewNumeric.innerHTML = renderNumericPreview(rawAoa, lastBuildDetails, currentWorkbook.Sheets['Model_Output']); renderAssumptions(rawAoa, lastBuildDetails); renderScenarioDiffs(rawAoa, lastBuildDetails); } }); spanVal.appendChild(sel); } else { if (text.trim()!==''){ const input = document.createElement('input'); input.value = text; input.dataset.row = r; input.dataset.col = 1; spanVal.appendChild(input); } else { spanVal.textContent = text; } } tdValue.appendChild(spanVal); tr.appendChild(tdValue); tbody.appendChild(tr); } table.appendChild(tbody); wrapper.appendChild(table); return wrapper; }
+  function hasAnyFormula(ws){ if (!ws) return false; for (const k of Object.keys(ws)) { if (k[0] === '!') continue; const c = ws[k]; if (c && c.f) return true; } return false; }
+  function showEmptyOutputsForValidation() { assumptionsBox.innerHTML = '<div class="note">Invalid inputs — assumptions unavailable</div>'; scenarioDiffBox.innerHTML = '<div class="note">Invalid inputs — scenario differences unavailable</div>'; previewNumeric.innerHTML = '<div class="note">Invalid inputs — preview unavailable</div>'; document.getElementById('preview-section').classList.remove('hidden'); }
+  function renderScenarioDiffs(aoa, details){ const scBounds = findScenarioTableBounds(aoa); if (!scBounds) { scenarioDiffBox.innerHTML = '<i>No scenario table found.</i>'; return; } const scen = {}; for (let r=scBounds.start;r<=scBounds.end;r++){ const name = String(aoa[r][0]||'').trim(); if (FIXED_SCENARIOS.includes(name)) scen[name] = parseValueToTyped(aoa[r][1]).v; } const initIdx = findRowIndexByLabel(aoa,'Initial Annual Revenue'); const initRev = initIdx>=0? parseValueToTyped(aoa[initIdx][1]).v || 0 : 0; const years = details.horizon; const startingYear = details.startingYear; let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr><th>Scenario</th>'; for (let y=0;y<years;y++) html += `<th>${startingYear + y}</th>`; html += '</tr></thead><tbody>'; for (const s of FIXED_SCENARIOS){ const g = scen[s]; let rev = initRev; html += `<tr><td style="font-weight:600">${s}</td>`; for (let y=0;y<years;y++){ if (y>0) rev = rev * (1 + (g||0)); html += `<td>${Number(rev).toLocaleString(undefined,{maximumFractionDigits:2})}</td>`; } html += '</tr>'; } html += '</tbody></table>'; scenarioDiffBox.innerHTML = html; }
+  function renderAssumptions(aoa, details){ const lines = []; function getRaw(label){ const idx = findRowIndexByLabel(aoa,label); return idx>=0? aoa[idx][1] : ''; } lines.push(`<b>Model Time Horizon (Years):</b> ${getRaw('Model Time Horizon (Years)')}`); lines.push(`<b>Starting Year:</b> ${getRaw('Starting Year')}`); lines.push(`<b>Currency:</b> ${getRaw('Currency')}`); lines.push(`<b>Initial Annual Revenue:</b> ${getRaw('Initial Annual Revenue')}`); lines.push(`<b>Gross Margin (%):</b> ${getRaw('Gross Margin (%)')}`); lines.push(`<b>Operating Expense Ratio (%):</b> ${getRaw('Operating Expense Ratio (%)')}`); lines.push(`<b>Tax Rate (%):</b> ${getRaw('Tax Rate (%)')}`); assumptionsBox.innerHTML = lines.join('<br/>'); renderScenarioDiffs(aoa, details); }
+  function renderFormulaTemplates(details){ const scRangeA1 = details.scenarioRangeA1 || '(Inputs scenario range)'; const activeA1 = details.activeA1 || '(Inputs!$B$ActiveRow)'; const initialA1 = (typeof details.initialRevenueRow === 'number') ? `Inputs!$B$${details.initialRevenueRow+1}` : '(InitialRevenue)'; const grossA1 = (typeof details.grossMarginRow === 'number') ? `Inputs!$B$${details.grossMarginRow+1}` : '(GrossMargin)'; const opexA1 = (typeof details.opexRow === 'number') ? `Inputs!$B$${details.opexRow+1}` : '(OpexRatio)'; const taxA1 = (typeof details.taxRow === 'number') ? `Inputs!$B$${details.taxRow+1}` : '(TaxRate)'; const templates = [ {key:'revenue_y1', title:'Revenue (Year1)', value: initialA1}, {key:'revenue_yn', title:'Revenue (YearN template)', value: `B(prev)*(1+VLOOKUP(${activeA1},${scRangeA1},2,FALSE))`}, {key:'cost', title:'Cost', value: `Revenue*(1-${grossA1})`}, {key:'profit', title:'Profit (Gross Profit - Opex)', value: `(Revenue - Cost) - (Revenue * ${opexA1})`}, {key:'cash', title:'Cash Flow (after tax)', value: `Profit*(1-${taxA1})`}, ]; formulasArea.innerHTML = ''; templates.forEach(t => { const block = document.createElement('div'); block.className='formula-block'; block.dataset.key = t.key; const title = document.createElement('div'); title.className='formula-title'; title.textContent = t.title; block.appendChild(title); const ta = document.createElement('textarea'); ta.value = t.value; ta.dataset.key = t.key; block.appendChild(ta); formulasArea.appendChild(block); }); }
+  function renderFormulaGrid(ws, details){ formulaGrid.innerHTML = ''; const horizon = details.horizon; const startRow = 2; const table = document.createElement('table'); const thead = document.createElement('thead'); const trh = document.createElement('tr'); ['Year','Revenue','Cost','Profit','Cash Flow'].forEach(h => { const th = document.createElement('th'); th.textContent = h; trh.appendChild(th); }); thead.appendChild(trh); table.appendChild(thead); const tbody = document.createElement('tbody'); for (let i=0;i<horizon;i++){ const tr = document.createElement('tr'); const yearCell = document.createElement('td'); const yearVal = ws[XLSX.utils.encode_cell({r:startRow-1+i,c:0})] ? ws[XLSX.utils.encode_cell({r:startRow-1+i,c:0})].v : ''; yearCell.textContent = yearVal; tr.appendChild(yearCell); for (let c=1;c<=4;c++){ const td = document.createElement('td'); const addr = XLSX.utils.encode_cell({r:startRow-1+i,c:c}); const cellObj = ws[addr] || {}; const hasAI = Array.isArray(cellObj.c) && cellObj.c.some(cc => String(cc.a||'').toLowerCase() === 'ai' || String(cc.t||'').toLowerCase().includes('ai')); if (hasAI){ const badge = document.createElement('div'); badge.className='ai-badge'; badge.textContent = 'AI-generated'; td.appendChild(badge); } const f = cellObj.f || ''; const ta = document.createElement('textarea'); ta.dataset.addr = addr; ta.value = f ? (f.startsWith('=')? f.slice(1) : f) : ''; td.appendChild(ta); tr.appendChild(td); } tbody.appendChild(tr); } table.appendChild(tbody); formulaGrid.appendChild(table); }
+  function renderNumericPreview(aoa, details, ws){ const horizon = details.horizon; const startRow = 2; const inputsMap = {}; for (let r=0;r<aoa.length;r++){ const vRaw = aoa[r][1]; const p = parseValueToTyped(vRaw); inputsMap[`Inputs!$B$${r+1}`] = p.t==='n'? p.v : vRaw; inputsMap[`Inputs!B${r+1}`] = inputsMap[`Inputs!$B$${r+1}`]; inputsMap[`Inputs!$A$${r+1}`] = aoa[r][0]; inputsMap[`Inputs!A${r+1}`] = aoa[r][0]; } function vlookupSim(lookupVal, rangeA1){ const m = rangeA1.match(/([^!]+)!/); if (!m || !m[1]) return null; // Simulated lookup for demonstration return Math.random() * 100; }
+  function collectInputsToRawAoa() { /* Simulate the gathering of input values to the raw area of arrays */ }
+  function clearOutputsOnValidation() { /* Simulate clearing output sections when validation fails */ }
+  function highlightAndCenterRow(container, rowIndex, colIndex) { /* Simulate highlighting and centering a specific row */ }
+  function chatPostAgent(message) { /* Simulate posting message to chat */ }
+  </script>
+</body>
+</html>
