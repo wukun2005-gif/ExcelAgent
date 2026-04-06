@@ -1,0 +1,1300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Local Financial Agent — Editable Formulas & Chat (OpenAI GPT-4 Integration)</title>
+  <style>
+    :root{
+      --gap:12px;--left-w:34%;--mid-w:46%;--chat-w:20%;
+      --left-col-width:36px;--col-width:220px;
+      --inputs-font-size:12px;--inputs-input-font-size:12px;
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:#222;background:#fff;}
+    header{padding:10px 14px;border-bottom:1px solid #e6e6e6;background:#fafafa;}
+    header h1{margin:0 0 6px 0;font-size:16px;}
+    header p{margin:0;color:#555;font-size:13px;}
+    .toolbar{padding:8px 14px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #f0f0f0;}
+    .btn{padding:7px 10px;background:#0366d6;color:#fff;border:none;cursor:pointer;border-radius:6px;font-size:13px;}
+    .btn:disabled{opacity:.55;cursor:not-allowed;}
+    .main{display:flex;gap:var(--gap);padding:12px;box-sizing:border-box;height:calc(100vh - 110px);}
+    .col{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;}
+    .left{flex:0 0 var(--left-w);min-width:220px;max-width:44%;}
+    .mid{flex:0 0 var(--mid-w);min-width:360px;overflow:auto;}
+    .chat{flex:0 0 var(--chat-w);min-width:220px;max-width:320px;}
+    .section-title{font-weight:600;margin:0 0 8px 0;font-size:14px;}
+    .inputs-wrap{width:100%;overflow:auto;position:relative;height:100%;}
+    table.inputs-table{border-collapse:collapse;width:100%;min-width:calc(var(--left-col-width)+var(--col-width)*2);table-layout:fixed;font-size:var(--inputs-font-size);}
+    table.inputs-table th,table.inputs-table td{border:1px solid #e6e6e6;padding:6px 6px;text-align:left;white-space:nowrap;vertical-align:middle;}
+    thead th.top-header{position:sticky;top:0;z-index:6;background:#f6f8fa;text-align:center;font-weight:600;}
+    td.row-num,th.corner{position:sticky;left:0;z-index:7;width:var(--left-col-width);min-width:var(--left-col-width);max-width:var(--left-col-width);background:#f7f7f7;text-align:center;font-weight:600;border-right:1px solid #e6e6e6;padding:6px 4px;}
+    th.corner{top:0;z-index:9;}
+    th.label-col,td.label-col{position:sticky;left:var(--left-col-width);z-index:5;background:#fff;min-width:calc(var(--col-width));max-width:calc(var(--col-width));overflow:hidden;text-overflow:ellipsis;}
+    th.value-col,td.value-col{min-width:calc(var(--col-width));max-width:calc(var(--col-width));overflow:hidden;text-overflow:ellipsis;}
+    .cell-span{display:inline-block;width:100%;height:100%;padding:2px 0;box-sizing:border-box;}
+    .inputs-table input,.inputs-table select{box-sizing:border-box;padding:6px;width:100%;border-radius:4px;border:1px solid #ddd;font-size:var(--inputs-input-font-size);background:#fff;}
+    .hidden{display:none!important;}
+    .formula-list{display:flex;flex-direction:column;gap:8px;overflow:auto;}
+    .formula-block{padding:10px;border:1px dashed #c7d2fe;border-radius:8px;background:#fbfbff;cursor:default;}
+    .formula-title{font-weight:600;}
+    .formula-block textarea{width:100%;height:48px;box-sizing:border-box;margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;}
+    .formula-grid{margin-top:8px;overflow:auto;}
+    .formula-grid table{width:100%;border-collapse:collapse;}
+    .formula-grid th,.formula-grid td{border:1px solid #e6e6e6;padding:6px;vertical-align:top;font-size:13px;}
+    .formula-grid textarea{width:100%;min-height:28px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;box-sizing:border-box;font-size:13px;}
+    .ai-badge{display:inline-block;background:#e6f0ff;color:#034d9b;border-radius:12px;padding:2px 8px;font-size:12px;margin-bottom:6px;}
+    .preview{margin-top:12px;overflow:auto;max-height:40vh;}
+    .preview table{width:100%;border-collapse:collapse;}
+    .preview th,.preview td{border:1px solid #e6e6e6;padding:6px;font-size:13px;}
+    .preview table.llm-table{border:2px solid #c7d2fe;background:#fbfbff;}
+    .preview table.llm-table th{background:#e6f0ff;color:#034d9b;}
+    .llm-badge{display:inline-block;background:#e6f0ff;color:#034d9b;border-radius:12px;padding:2px 8px;font-size:11px;margin-left:8px;}
+    .assumptions{margin-top:12px;padding:8px;border:1px solid #eee;border-radius:6px;background:#fafafa;font-size:13px;overflow:auto;max-height:120px;}
+    .highlight{background:linear-gradient(90deg,#fff6d6,#ffd98a)!important;box-shadow:0 8px 24px rgba(255,140,0,0.18),0 0 0 3px rgba(255,140,0,0.06) inset;border-radius:6px;border:2px solid rgba(255,140,0,0.9);color:#1e1e1e;font-weight:700;transition:background .12s ease,box-shadow .12s ease;transform:translateZ(0);}
+    .note{color:#555;font-size:13px;margin-top:8px;}
+    .chat-body{flex:1;display:flex;flex-direction:column;gap:8px;overflow:auto;padding-bottom:6px;}
+    .msg{padding:8px 10px;border-radius:10px;max-width:100%;font-size:13px;line-height:1.3;}
+    .msg.user{background:#0366d6;color:#fff;margin-left:auto;text-align:right;}
+    .msg.agent{background:#f1f3f5;color:#111;margin-right:auto;text-align:left;}
+    .chat-input{display:flex;gap:8px;margin-top:8px;}
+    .chat-input input,.chat-input textarea{flex:1;padding:8px;border-radius:6px;border:1px solid #ddd;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Local Financial Agent</h1>
+    <p>Inputs are Excel-like. Generate a model via chat ("generate"). Active Scenario is a dropdown in Inputs (cell B18).</p>
+  </header>
+
+  <div class="toolbar">
+    <button id="btn-apply-formulas" class="btn" disabled>Apply Edited Formulas</button>
+    <button id="btn-recompute-preview" class="btn" disabled>Recompute Preview</button>
+    <button id="btn-export" class="btn" disabled>Export .xlsx (with formulas)</button>
+    <div style="flex:1"></div>
+    <label style="font-size:12px;color:#555;margin-right:4px;">OpenAI API Key:</label>
+    <input type="password" id="api-key-input" placeholder="sk-..." style="width:180px;padding:6px;border-radius:4px;border:1px solid #ddd;font-size:12px;margin-right:8px;" />
+    <span id="api-status" style="font-size:11px;color:#888;"></span>
+  </div>
+
+  <div class="main">
+    <div class="col left">
+      <div class="section-title">Inputs (Excel-like)</div>
+      <div id="inputs-container" class="inputs-wrap"></div>
+      <div class="note">Active Scenario is B18. Change it via the dropdown (Bear/Base/Bull). If a model is generated, changing it updates preview.</div>
+    </div>
+
+    <div class="col mid" id="mid-content" aria-hidden="true">
+      <div id="formulas-section" class="hidden">
+        <div class="section-title">Formula Templates (editable)</div>
+        <div id="formulas-area" class="formula-list"></div>
+      </div>
+
+      <div id="formula-grid-section" class="hidden" style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="section-title">Model_Output Formulas (cell-level editable)</div>
+          <div style="font-size:12px;color:#666;">Edit, then click "Apply Edited Formulas"</div>
+        </div>
+        <div id="formula-grid" class="formula-grid"></div>
+      </div>
+
+      <div id="assumptions-section" style="margin-top:12px;">
+        <div class="section-title">Assumptions</div>
+        <div id="assumptions-box" class="assumptions"></div>
+      </div>
+
+      <div id="scenario-diff-section" style="margin-top:8px;">
+        <div class="section-title">Scenario Differences</div>
+        <div id="scenario-diff" class="assumptions"></div>
+      </div>
+
+      <div id="preview-section" class="hidden" style="margin-top:10px;">
+        <div class="section-title" id="preview-title">Finance Model Output Preview: Base</div>
+        <div id="preview-numeric" class="preview"></div>
+      </div>
+
+      <div style="margin-top:10px;font-size:13px;color:#333;">
+        <strong>Disclaimer:</strong> This model is for planning support, not financial advice. Validate results before external use.
+      </div>
+    </div>
+
+    <div class="col chat">
+      <div class="section-title">Agent Chat</div>
+      <div id="chat-body" class="chat-body" aria-live="polite"></div>
+
+      <div class="chat-input">
+        <input id="chat-input" placeholder='e.g. "Based on the Inputs sheet, generate a 3-year financial model..." or "verify" / "recover"' />
+        <button id="chat-send" class="btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script>
+  /* ---------- Data & helpers ---------- */
+  const FIXED_INPUTS_AOA = [
+    ["🟦 Basic Business Assumptions",""],
+    ["Model Time Horizon (Years)","3"],
+    ["Starting Year","2025"],
+    ["Currency","USD"],
+    ["🟦 Revenue Assumptions",""],
+    ["Initial Annual Revenue","10,000,000"],
+    ["Revenue Recognition","Annual"],
+    ["🟦 Cost Assumptions",""],
+    ["Gross Margin (%)","65%"],
+    ["Operating Expense Ratio (%)","25%"],
+    ["Tax Rate (%)","20%"],
+    ["🟦 Scenario Growth Rates",""],
+    ["Scenario","Revenue Growth Rate"],
+    ["Bear","5%"],
+    ["Base","12%"],
+    ["Bull","20%"],
+    ["🟦 Active Scenario Selector",""],
+    ["Active Scenario","Base"]
+  ];
+  const FIXED_SCENARIOS = ['Bear','Base','Bull'];
+  const DEFAULT_LLM_MODEL = 'gpt-4o';
+
+  /* ---------- OpenAI API Integration ---------- */
+  const FINANCIAL_SYSTEM_PROMPT = `You are an Excel Agent Financial Model Assistant that helps finance users quickly generate auditable financial models from structured inputs.
+
+Your mission: Accelerate financial model creation while maintaining full transparency, auditability, and user control.
+
+## Core Responsibilities
+
+✅ EXPLICITLY DO:
+- Generate Excel formulas (not hard-coded values) that reference input cells
+- Tag all AI-generated cells as "AI-generated"
+- Provide inline comments explaining each formula's logic
+- Reference source assumptions clearly (e.g., "=Revenue_Assumptions!B2 * (1 + Growth_Rate)")
+- Ask confirmation before generating
+- Clarify model intent with constrained choices
+- Prompt for iterative refinement
+- Show warnings and validity checks
+- Include clear disclaimers
+
+❌ NEVER DO:
+- Override user assumptions
+- Introduce hidden heuristics or fabricated numbers
+- Generate hard-coded values (always use formulas)
+- Create unverifiable outputs
+- Make silent inferences for missing assumptions
+- Ignore conflicts or missing inputs
+
+## Key Guardrails
+
+Transparency Guardrails:
+- All AI-generated cells must be tagged "AI-generated"
+- Every output traceable to specific assumptions
+- No silent generation - always confirm first
+
+Control Guardrails:
+- Users can edit any assumption at any time
+- Model recalculates deterministically after edits
+- Full user control maintained
+
+Risk Mitigation:
+- Clear disclaimer: "This model is for planning support, not financial advice"
+- Encourage validation before external use
+
+## Structured Inputs to Expect
+
+Time horizon (e.g., 3 years)
+Revenue drivers: Initial revenue, Growth rate
+Cost drivers: Gross margin, Operating expenses, Tax rate
+Scenario parameters: Bear / Base / Bull variations
+
+## Expected Output Structure
+
+For financial model requests, you MUST ALWAYS respond with a Markdown table using EXACT column names:
+
+| Year | Revenue | Cost | Profit | Cash Flow |
+|------|---------|------|--------|-----------|
+| 2025 | 10,000,000 | 3,500,000 | 6,500,000 | 5,200,000 |
+| 2026 | 11,200,000 | 3,920,000 | 7,280,000 | 5,824,000 |
+
+## Interaction Protocol
+
+Step 1: Confirm Inputs (when applicable)
+"Detected [revenue growth], [COGS], and [operating expense] assumptions. Do you want to build a financial model based on these inputs?"
+
+Step 2: Clarify Intent (when applicable)
+"What type of model do you want to build?
+A: 3-statement projection
+B: P&L only
+C: Scenario comparison (Base/Bull/Bear)"
+
+Step 3: Generate with Transparency
+- Generate formulas, not values
+- Include inline comments
+- Tag AI-generated cells
+
+## Quality Thresholds
+
+Correctness: ≥ 99% mathematical accuracy
+Completeness: All required sections present
+Safety: Missing inputs must block generation (fail safely)
+Relevance: Strictly financial modeling only
+
+## MVP Scope (Do Not Exceed)
+
+Single product or business line
+Simplified structure: Revenue, Cost, Profit
+3-year projection only
+Bear/Base/Bull scenarios only
+
+Out of Scope: DCF, IRR, Depreciation, complex finance models
+
+Remember: You build trust through transparency, not speed. When in doubt, ask for clarification.
+
+For general financial questions (not requesting models), provide clear analysis based on provided inputs.`;
+
+  function getApiKey() {
+    return document.getElementById('api-key-input').value.trim();
+  }
+
+  function updateApiStatus(status, isError = false) {
+    const statusEl = document.getElementById('api-status');
+    statusEl.textContent = status;
+    statusEl.style.color = isError ? '#d32f2f' : '#388e3c';
+  }
+
+  async function callOpenAI(userMessage, inputsContext = '') {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error('Please enter your OpenAI API Key in the toolbar.');
+    }
+
+    const messages = [
+      { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
+    ];
+
+    if (inputsContext) {
+      messages.push({
+        role: 'system',
+        content: `Current financial inputs:\n${inputsContext}`
+      });
+    }
+
+    messages.push({ role: 'user', content: userMessage });
+
+    updateApiStatus('Calling GPT-4...');
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: DEFAULT_LLM_MODEL,
+        messages: messages,
+        max_tokens: 1024,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData.error?.message || `API Error: ${response.status}`;
+      updateApiStatus('Error', true);
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    updateApiStatus('Ready');
+    return data.choices[0].message.content;
+  }
+
+  function getInputsContextString(aoa) {
+    const lines = [];
+    for (let i = 0; i < aoa.length; i++) {
+      const label = aoa[i][0] || '';
+      const value = aoa[i][1] || '';
+      if (label && !label.startsWith('🟦')) {
+        lines.push(`${label}: ${value}`);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  function cloneAoa(a){ return JSON.parse(JSON.stringify(a)); }
+  function parseValueToTyped(value){
+    if (value==null) return {t:'s', v:''};
+    const s = String(value).trim();
+    if (s==='') return {t:'s', v:''};
+    const percent = s.match(/^(-?\d+(?:[\.,]\d+)?)\s*%$/);
+    if (percent) return {t:'n', v: parseFloat(percent[1].replace(',', '.'))/100, z:'0.00%'};
+    const numMatch = s.match(/^-?[\d,]+(?:\.\d+)?$/);
+    if (numMatch){ const n = parseFloat(s.replace(/,/g,'')); if (!isNaN(n)) return {t:'n', v:n}; }
+    const yearMatch = s.match(/^\d{4}$/);
+    if (yearMatch) return {t:'n', v: parseInt(s,10)};
+    return {t:'s', v:s};
+  }
+  function aoaToSheetWithTypes(aoa){
+    const ws={}, range={s:{r:0,c:0}, e:{r:0,c:0}};
+    for (let R=0; R<aoa.length; R++){
+      for (let C=0; C<(aoa[R]?aoa[R].length:0); C++){
+        if (R>range.e.r) range.e.r = R;
+        if (C>range.e.c) range.e.c = C;
+        const val = aoa[R][C];
+        const addr = XLSX.utils.encode_cell({r:R,c:C});
+        const p = parseValueToTyped(val);
+        const cell = {t: p.t, v: p.v};
+        if (p.z) cell.z = p.z;
+        ws[addr] = cell;
+      }
+    }
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    return ws;
+  }
+  function findRowIndexByLabel(aoa,label){
+    for (let i=0;i<aoa.length;i++){
+      if (!aoa[i] || typeof aoa[i][0] === 'undefined') continue;
+      if (String(aoa[i][0]).trim() === label) return i;
+    }
+    return -1;
+  }
+
+  // Robust scenario table locator (only consider Bear/Base/Bull rows)
+  function findScenarioTableBounds(aoa){
+    for (let i=0;i<aoa.length;i++){
+      if (!aoa[i]) continue;
+      const a = String(aoa[i][0] || '').trim();
+      const b = String(aoa[i][1] || '').trim().toLowerCase();
+      if (a === 'Scenario' && b.includes('revenue')) {
+        let start = i+1, end = start-1;
+        for (let r = start; r < aoa.length; r++){
+          const cellA = aoa[r] && typeof aoa[r][0] !== 'undefined' ? String(aoa[r][0]).trim() : '';
+          if (!cellA) break;
+          // stop at next section header or obvious non-scenario marker
+          if (cellA.startsWith('🟦') || cellA.toLowerCase().includes('active scenario') || cellA.toLowerCase().includes('selector')) break;
+          end = r;
+        }
+        if (end >= start) return {start, end};
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function extractSimpleInputCells(aoa){
+    const map = {};
+    const labels = ['Model Time Horizon (Years)','Starting Year','Currency','Initial Annual Revenue','Revenue Recognition','Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)','Active Scenario'];
+    labels.forEach(label => {
+      const r = findRowIndexByLabel(aoa, label);
+      if (r !== -1) map[label] = {r: r, c: 1, raw: aoa[r][1]};
+    });
+    return map;
+  }
+
+  // Validation: fail-safe and only treat explicit Bear/Base/Bull rows as scenarios
+  function validateInputs(aoa){
+    const errors = [], warnings = [];
+    const get = (label) => { const r = findRowIndexByLabel(aoa, label); return r>=0 ? String(aoa[r][1] || '').trim() : ''; };
+
+    // presence
+    const required = ['Model Time Horizon (Years)','Starting Year','Initial Annual Revenue','Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)','Active Scenario'];
+    required.forEach(label => {
+      const v = get(label);
+      if (!v) errors.push({label, message: `${label} is required.`});
+    });
+
+    // scenario table
+    const scBounds = findScenarioTableBounds(aoa);
+    if (!scBounds) {
+      errors.push({label:'Scenario Growth Rates', message: 'Scenario Growth Rates table is missing or malformed.'});
+    } else {
+      const found = {};
+      for (let r=scBounds.start; r<=scBounds.end; r++){
+        const name = String(aoa[r][0] || '').trim();
+        if (FIXED_SCENARIOS.includes(name)) {
+          found[name] = true;
+          const valRaw = String(aoa[r][1] || '').trim();
+          const parsed = parseValueToTyped(valRaw);
+          if (parsed.t !== 'n') {
+            errors.push({label:`Scenario ${name}`, message: `Growth rate for scenario "${name}" must be a percentage or numeric value (e.g. 12%).`});
+          }
+        }
+      }
+      FIXED_SCENARIOS.forEach(s => { if (!found[s]) errors.push({label:'Scenario Growth Rates', message:`Scenario "${s}" not found in Scenario Growth Rates table.`}); });
+    }
+
+    // Initial revenue numeric > 0
+    const revRaw = get('Initial Annual Revenue');
+    const revParsed = parseValueToTyped(revRaw);
+    if (revParsed.t !== 'n') errors.push({label:'Initial Annual Revenue', message:'Initial Annual Revenue must be numeric (e.g. 1000000).'});
+    else if (revParsed.v <= 0) errors.push({label:'Initial Annual Revenue', message:'Initial Annual Revenue must be greater than 0.'});
+
+    // percentage range checks
+    const pctLabels = ['Gross Margin (%)','Operating Expense Ratio (%)','Tax Rate (%)'];
+    pctLabels.forEach(label => {
+      const raw = get(label);
+      const p = parseValueToTyped(raw);
+      if (p.t !== 'n') { errors.push({label, message: `${label} must be a percentage (e.g. 65%).`}); return; }
+      const v = p.v;
+      if (v < 0 || v > 1) errors.push({label, message: `${label} must be between 0% and 100%.`});
+    });
+
+    // active scenario sanity
+    const active = get('Active Scenario');
+    if (active && !FIXED_SCENARIOS.includes(active)) errors.push({label:'Active Scenario', message:`Active Scenario must be one of ${FIXED_SCENARIOS.join(', ')}.`});
+
+    return {errors, warnings, scBounds};
+  }
+
+  /* ---------- State & DOM refs ---------- */
+  let rawAoa = cloneAoa(FIXED_INPUTS_AOA);
+  let currentWorkbook = null;
+  let lastBuildDetails = null;
+
+  const inputsContainer = document.getElementById('inputs-container');
+  const midContent = document.getElementById('mid-content');
+  const formulasArea = document.getElementById('formulas-area');
+  const formulaGrid = document.getElementById('formula-grid');
+  const previewNumeric = document.getElementById('preview-numeric');
+  const assumptionsBox = document.getElementById('assumptions-box');
+  const scenarioDiffBox = document.getElementById('scenario-diff');
+  const previewTitle = document.getElementById('preview-title');
+
+  /* ---------- Core model builder (kept as a single exported function) ---------- */
+  function buildModelOutputSheet(aoa, wb){
+    // same robust implementation as before — checks are performed earlier; here we create formulas and tag AI
+    const inputsSheetName='Inputs', modelSheetName='Model_Output';
+    const map = extractSimpleInputCells(aoa);
+    const horizon = parseInt(String(map['Model Time Horizon (Years)'].raw).replace(/\D/g,''),10);
+    const startingYear = parseInt(String(map['Starting Year'].raw).replace(/\D/g,''),10);
+    const scBounds = findScenarioTableBounds(aoa);
+    if (!scBounds) throw new Error('Scenario Growth Rates table missing during build.');
+    const scenarioRangeA1 = `${inputsSheetName}!$A$${scBounds.start+1}:$B$${scBounds.end+1}`;
+    const activeA1 = `${inputsSheetName}!$B$${map['Active Scenario'].r+1}`;
+    const initialRevenueA1 = `${inputsSheetName}!$B$${map['Initial Annual Revenue'].r+1}`;
+    const grossA1 = `${inputsSheetName}!$B$${map['Gross Margin (%)'].r+1}`;
+    const opexA1 = `${inputsSheetName}!$B$${map['Operating Expense Ratio (%)'].r+1}`;
+    const taxA1 = `${inputsSheetName}!$B$${map['Tax Rate (%)'].r+1}`;
+
+    const aoaModel = [['Year','Revenue','Cost','Profit','Cash Flow']];
+    for (let y=0;y<horizon;y++) aoaModel.push([startingYear+y, null, null, null, null]);
+    const ws = XLSX.utils.aoa_to_sheet(aoaModel);
+
+    for (let i=0;i<horizon;i++){
+      const rowNum = 2 + i;
+      const revAddr = XLSX.utils.encode_cell({r:rowNum-1,c:1});
+      const costAddr = XLSX.utils.encode_cell({r:rowNum-1,c:2});
+      const profitAddr = XLSX.utils.encode_cell({r:rowNum-1,c:3});
+      const cashAddr = XLSX.utils.encode_cell({r:rowNum-1,c:4});
+      ws[revAddr] = ws[revAddr] || {}; ws[costAddr] = ws[costAddr] || {}; ws[profitAddr] = ws[profitAddr] || {}; ws[cashAddr] = ws[cashAddr] || {};
+      if (i === 0) {
+        ws[revAddr].t = 'n'; ws[revAddr].f = `${initialRevenueA1}`;
+      } else {
+        const prev = XLSX.utils.encode_cell({r:rowNum-2,c:1});
+        ws[revAddr].t = 'n'; ws[revAddr].f = `${prev}*(1+VLOOKUP(${activeA1},${scenarioRangeA1},2,FALSE))`;
+      }
+      ws[revAddr].c = ws[revAddr].c || []; ws[revAddr].c.push({a:'AI', t:'AI-generated'});
+      ws[costAddr].t = 'n'; ws[costAddr].f = `${revAddr}*(1-${grossA1})`; ws[costAddr].c = ws[costAddr].c || []; ws[costAddr].c.push({a:'AI', t:'AI-generated'});
+      ws[profitAddr].t = 'n'; ws[profitAddr].f = `${revAddr} - ${costAddr} - (${revAddr}*${opexA1})`; ws[profitAddr].c = ws[profitAddr].c || []; ws[profitAddr].c.push({a:'AI', t:'AI-generated'});
+      ws[cashAddr].t = 'n'; ws[cashAddr].f = `${profitAddr}*(1-${taxA1})`; ws[cashAddr].c = ws[cashAddr].c || []; ws[cashAddr].c.push({a:'AI', t:'AI-generated'});
+    }
+
+    ws['!ref'] = `A1:E${1+horizon}`;
+    wb.Sheets[modelSheetName] = ws;
+    wb.SheetNames.push(modelSheetName);
+    return {
+      wb,
+      details: {
+        horizon, startingYear, scenarioRangeA1, activeA1,
+        initialRevenueRow: map['Initial Annual Revenue'].r,
+        grossMarginRow: map['Gross Margin (%)'].r,
+        opexRow: map['Operating Expense Ratio (%)'].r,
+        taxRow: map['Tax Rate (%)'].r,
+        activeRow: map['Active Scenario'].r,
+        scBounds
+      }
+    };
+  }
+
+  /* ---------- Rendering functions (inputs, assumptions, grid, preview) ---------- */
+  function renderInputsTableWithHeaders(aoa){
+    const wrapper = document.createElement('div'); wrapper.className='inputs-wrap'; wrapper.style.height='100%';
+    const table = document.createElement('table'); table.className='inputs-table';
+    const thead = document.createElement('thead'); const trHead = document.createElement('tr');
+    const thCorner = document.createElement('th'); thCorner.className='corner top-header'; thCorner.textContent=''; trHead.appendChild(thCorner);
+    const thA = document.createElement('th'); thA.className='top-header label-col'; thA.textContent='A'; trHead.appendChild(thA);
+    const thB = document.createElement('th'); thB.className='top-header value-col'; thB.textContent='B'; trHead.appendChild(thB);
+    thead.appendChild(trHead); table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    const activeRowIdx = findRowIndexByLabel(aoa, 'Active Scenario');
+
+    for (let r=0;r<aoa.length;r++){
+      const row = aoa[r] || []; const tr = document.createElement('tr');
+      const tdNum = document.createElement('td'); tdNum.className='row-num'; tdNum.textContent = (r+1).toString(); tr.appendChild(tdNum);
+      const cellTag = (r===0) ? 'th' : 'td';
+      const thLabel = document.createElement(cellTag); thLabel.className='label-col';
+      const spanLabel = document.createElement('span'); spanLabel.className='cell-span'; spanLabel.dataset.row=r; spanLabel.dataset.col=0;
+      spanLabel.textContent = (typeof row[0] === 'undefined' || row[0] === null) ? '' : String(row[0]);
+      thLabel.appendChild(spanLabel); tr.appendChild(thLabel);
+
+      const tdValue = document.createElement('td'); tdValue.className='value-col';
+      const spanVal = document.createElement('span'); spanVal.className='cell-span'; spanVal.dataset.row=r; spanVal.dataset.col=1;
+      const text = (typeof row[1] === 'undefined' || row[1] === null) ? '' : String(row[1]);
+
+      if (r === activeRowIdx) {
+        const sel = document.createElement('select');
+        sel.dataset.row = r; sel.dataset.col = 1;
+        ['Bear','Base','Bull'].forEach(opt => {
+          const o = document.createElement('option'); o.value = opt; o.textContent = opt; if (String(text).trim() === opt) o.selected = true; sel.appendChild(o);
+        });
+        sel.addEventListener('change', (e) => {
+          rawAoa[r][1] = e.target.value;
+          previewTitle.textContent = `Finance Model Output Preview: ${e.target.value}`;
+          if (currentWorkbook && lastBuildDetails) {
+            const validation = validateInputs(rawAoa);
+            if (validation.errors.length) {
+              const msg = validation.errors.map(er => `• ${er.message}`).join('<br/>');
+              chatPostAgent(`<b>Input validation error:</b><br/>${msg}`);
+              const first = validation.errors[0];
+              const idx = findRowIndexByLabel(rawAoa, first.label || '');
+              if (typeof idx === 'number' && idx >= 0) highlightAndCenterRow(inputsContainer, idx, 1);
+              return;
+            }
+            const ws = currentWorkbook.Sheets['Model_Output'];
+            if (!ws || !hasAnyFormula(ws)) {
+              chatPostAgent('No formulas present in Model_Output. Use "generate" to create formulas first.');
+              return;
+            }
+            previewNumeric.innerHTML = renderNumericPreview(rawAoa, lastBuildDetails, ws);
+            renderAssumptions(rawAoa, lastBuildDetails);
+          }
+        });
+        spanVal.appendChild(sel);
+      } else {
+        if (text.trim() !== '') {
+          const input = document.createElement('input'); input.value = text; input.dataset.row = r; input.dataset.col = 1; spanVal.appendChild(input);
+        } else {
+          spanVal.textContent = text;
+        }
+      }
+
+      tdValue.appendChild(spanVal);
+      tr.appendChild(tdValue);
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    return wrapper;
+  }
+
+  function hasAnyFormula(ws){
+    if (!ws) return false;
+    for (const k of Object.keys(ws)) {
+      if (k[0] === '!') continue;
+      const c = ws[k];
+      if (c && c.f) return true;
+    }
+    return false;
+  }
+
+  function renderAssumptions(aoa, details){
+    const lines = [];
+    function getRaw(label){ const idx = findRowIndexByLabel(aoa,label); return idx>=0? aoa[idx][1] : ''; }
+    lines.push(`<b>Model Time Horizon (Years):</b> ${getRaw('Model Time Horizon (Years)')}`);
+    lines.push(`<b>Starting Year:</b> ${getRaw('Starting Year')}`);
+    lines.push(`<b>Currency:</b> ${getRaw('Currency')}`);
+    lines.push(`<b>Initial Annual Revenue:</b> ${getRaw('Initial Annual Revenue')}`);
+    lines.push(`<b>Gross Margin (%):</b> ${getRaw('Gross Margin (%)')}`);
+    lines.push(`<b>Operating Expense Ratio (%):</b> ${getRaw('Operating Expense Ratio (%)')}`);
+    lines.push(`<b>Tax Rate (%):</b> ${getRaw('Tax Rate (%)')}`);
+    assumptionsBox.innerHTML = lines.join('<br/>');
+
+    const scBounds = findScenarioTableBounds(aoa);
+    if (!scBounds) { scenarioDiffBox.innerHTML = '<i>No scenario table found.</i>'; return; }
+    const scen = {};
+    for (let r=scBounds.start;r<=scBounds.end;r++){
+      const name = String(aoa[r][0]||'').trim();
+      if (FIXED_SCENARIOS.includes(name)) scen[name] = parseValueToTyped(aoa[r][1]).v;
+    }
+    const initIdx = findRowIndexByLabel(aoa,'Initial Annual Revenue');
+    const initRev = initIdx>=0? parseValueToTyped(aoa[initIdx][1]).v || 0 : 0;
+    const years = details.horizon; const startingYear = details.startingYear;
+    let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr><th>Scenario</th>';
+    for (let y=0;y<years;y++) html += `<th>${startingYear + y}</th>`;
+    html += '</tr></thead><tbody>';
+    for (const s of FIXED_SCENARIOS){ const g = scen[s]; let rev = initRev; html += `<tr><td style="font-weight:600">${s}</td>`; for (let y=0;y<years;y++){ if (y>0) rev = rev * (1 + (g||0)); html += `<td>${Number(rev).toLocaleString(undefined,{maximumFractionDigits:2})}</td>`; } html += '</tr>'; }
+    html += '</tbody></table>';
+    scenarioDiffBox.innerHTML = html;
+  }
+
+  function renderFormulaTemplates(details){
+    const scRangeA1 = details.scenarioRangeA1 || '(Inputs scenario range)';
+    const activeA1 = details.activeA1 || '(Inputs!$B$ActiveRow)';
+    const initialA1 = (typeof details.initialRevenueRow === 'number') ? `Inputs!$B$${details.initialRevenueRow+1}` : '(InitialRevenue)';
+    const grossA1 = (typeof details.grossMarginRow === 'number') ? `Inputs!$B$${details.grossMarginRow+1}` : '(GrossMargin)';
+    const opexA1 = (typeof details.opexRow === 'number') ? `Inputs!$B$${details.opexRow+1}` : '(OpexRatio)';
+    const taxA1 = (typeof details.taxRow === 'number') ? `Inputs!$B$${details.taxRow+1}` : '(TaxRate)';
+    const templates = [
+      {key:'revenue_y1', title:'Revenue (Year1)', value: initialA1},
+      {key:'revenue_yn', title:'Revenue (YearN template)', value: `B(prev)*(1+VLOOKUP(${activeA1},${scRangeA1},2,FALSE))`},
+      {key:'cost', title:'Cost', value: `Revenue*(1-${grossA1})`},
+      {key:'profit', title:'Profit (Gross Profit - Opex)', value: `(Revenue - Cost) - (Revenue * ${opexA1})`},
+      {key:'cash', title:'Cash Flow (after tax)', value: `Profit*(1-${taxA1})`},
+    ];
+    formulasArea.innerHTML = '';
+    templates.forEach(t => {
+      const block = document.createElement('div'); block.className='formula-block'; block.dataset.key = t.key;
+      const title = document.createElement('div'); title.className='formula-title'; title.textContent = t.title; block.appendChild(title);
+      const ta = document.createElement('textarea'); ta.value = t.value; ta.dataset.key = t.key; block.appendChild(ta);
+      formulasArea.appendChild(block);
+    });
+  }
+
+  function renderFormulaGrid(ws, details){
+    formulaGrid.innerHTML = '';
+    const horizon = details.horizon; const startRow = 2;
+    const table = document.createElement('table'); const thead = document.createElement('thead'); const trh = document.createElement('tr');
+    ['Year','Revenue','Cost','Profit','Cash Flow'].forEach(h => { const th = document.createElement('th'); th.textContent = h; trh.appendChild(th); });
+    thead.appendChild(trh); table.appendChild(thead); const tbody = document.createElement('tbody');
+    for (let i=0;i<horizon;i++){
+      const tr = document.createElement('tr');
+      const yearCell = document.createElement('td'); const yearVal = ws[XLSX.utils.encode_cell({r:startRow-1+i,c:0})] ? ws[XLSX.utils.encode_cell({r:startRow-1+i,c:0})].v : ''; yearCell.textContent = yearVal; tr.appendChild(yearCell);
+      for (let c=1;c<=4;c++){
+        const td = document.createElement('td');
+        const addr = XLSX.utils.encode_cell({r:startRow-1+i,c:c});
+        const cellObj = ws[addr] || {};
+        const hasAI = Array.isArray(cellObj.c) && cellObj.c.some(cc => String(cc.a||'').toLowerCase() === 'ai' || String(cc.t||'').toLowerCase().includes('ai'));
+        if (hasAI){
+          const badge = document.createElement('div'); badge.className='ai-badge'; badge.textContent = 'AI-generated';
+          td.appendChild(badge);
+        }
+        const f = cellObj.f || '';
+        const ta = document.createElement('textarea'); ta.dataset.addr = addr; ta.value = f ? (f.startsWith('=')? f.slice(1) : f) : '';
+        td.appendChild(ta); tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody); formulaGrid.appendChild(table);
+  }
+
+  function renderNumericPreview(aoa, details, ws){
+    const horizon = details.horizon; const startRow = 2;
+    const inputsMap = {};
+    for (let r=0;r<aoa.length;r++){ const vRaw = aoa[r][1]; const p = parseValueToTyped(vRaw); inputsMap[`Inputs!$B$${r+1}`] = p.t==='n'? p.v : vRaw; inputsMap[`Inputs!B${r+1}`] = inputsMap[`Inputs!$B$${r+1}`]; inputsMap[`Inputs!$A$${r+1}`] = aoa[r][0]; inputsMap[`Inputs!A${r+1}`] = aoa[r][0]; }
+    function vlookupSim(lookupVal, rangeA1){ const m = rangeA1.match(/([^!]+)!\$?([A-Z]+)\$?([0-9]+):\$?([A-Z]+)\$?([0-9]+)/); if(!m) return 0; const sheet=m[1]; const rowStart=parseInt(m[3],10), rowEnd=parseInt(m[5],10); for (let r=rowStart;r<=rowEnd;r++){ const name = inputsMap[`${sheet}!A${r}`] || inputsMap[`${sheet}!$A$${r}`]; if (String(name).trim()===String(lookupVal).trim()){ const val = inputsMap[`${sheet}!B${r}`] || inputsMap[`${sheet}!$B$${r}`]; const parsed = parseValueToTyped(val); return parsed.t==='n'? parsed.v : 0; } } return 0; }
+    const modelValues = {}; const rows = [];
+    for (let i=0;i<horizon;i++){
+      const rowNum = startRow + i; const resultRow = {year: ws[XLSX.utils.encode_cell({r:rowNum-1,c:0})] ? ws[XLSX.utils.encode_cell({r:rowNum-1,c:0})].v : ''};
+      for (let c=1;c<=4;c++){
+        const addr = XLSX.utils.encode_cell({r:rowNum-1,c:c}); const cellObj = ws[addr] || {}; let f = cellObj.f ? (cellObj.f.startsWith('=')? cellObj.f.slice(1): cellObj.f) : '';
+        if (!f){ modelValues[`${['','B','C','D','E'][c]}${rowNum}`]=0; if(c===1) resultRow.revenue=0; if(c===2) resultRow.cost=0; if(c===3) resultRow.profit=0; if(c===4) resultRow.cash=0; continue; }
+        f = f.replace(/VLOOKUP\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*2\s*,\s*FALSE\s*\)/ig, function(_, lookupArg, rangeArg){
+          let lookupVal = lookupArg.trim(); if (/^["'].*["']$/.test(lookupVal)) lookupVal = lookupVal.slice(1,-1);
+          if (/^[A-Za-z_0-9]+!\$?[A-Z]+\$?[0-9]+$/.test(lookupVal)) { const v = inputsMap[lookupVal] !== undefined ? inputsMap[lookupVal] : lookupVal; lookupVal = v; }
+          return vlookupSim(lookupVal, rangeArg) || 0;
+        });
+        f = f.replace(/([A-Za-z_0-9]+)!\$?([A-Z]+)\$?([0-9]+)/g, function(_, sheet, col, row){ const a1 = `${sheet}!$${col}$${row}`, a2 = `${sheet}!${col}${row}`; const v = inputsMap[a1] !== undefined ? inputsMap[a1] : inputsMap[a2]; const parsed = parseValueToTyped(v); return parsed.t==='n'? parsed.v : 0; });
+        f = f.replace(/([A-Z]+)(\d+)/g, function(_, col, row){ const key = `${col}${row}`; return modelValues[key] !== undefined ? modelValues[key] : 0; });
+        const sanitized = f.replace(/,/g,''); let value = 0;
+        try{ if(/^[0-9\.\+\-\*\/\(\)\s]+$/.test(sanitized)){ value = Function('"use strict";return (' + sanitized + ')')(); if (isNaN(value)) value = 0; } else value = 0; } catch(e){ value=0; }
+        modelValues[`${['','B','C','D','E'][c]}${rowNum}`] = value; if (c===1) resultRow.revenue = value; else if(c===2) resultRow.cost = value; else if(c===3) resultRow.profit = value; else if(c===4) resultRow.cash = value;
+      }
+      rows.push(resultRow);
+    }
+    let html = '<table><thead><tr><th>Year</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Cash Flow</th></tr></thead><tbody>';
+    rows.forEach(r=> html += `<tr><td>${r.year}</td><td>${Number(r.revenue).toLocaleString()}</td><td>${Number(r.cost).toLocaleString()}</td><td>${Number(r.profit).toLocaleString()}</td><td>${Number(r.cash).toLocaleString()}</td></tr>`);
+    html += '</tbody></table>'; return html;
+  }
+
+  /* ---------- Input collection & utilities ---------- */
+  function collectInputsToRawAoa(){
+    const inputs = inputsContainer.querySelectorAll('input[data-row][data-col]');
+    inputs.forEach(inp => { const r = parseInt(inp.dataset.row,10), c = parseInt(inp.dataset.col,10); rawAoa[r][c] = inp.value; });
+    const sel = inputsContainer.querySelector('select[data-row][data-col]');
+    if (sel) rawAoa[parseInt(sel.dataset.row,10)][1] = sel.value;
+  }
+
+  /* ---------- Actions: generate / apply / recompute / recover ---------- */
+  function rebuildAllAndShowMid(){
+    collectInputsToRawAoa();
+    inputsContainer.innerHTML = ''; inputsContainer.appendChild(renderInputsTableWithHeaders(rawAoa));
+
+    const validation = validateInputs(rawAoa);
+    if (validation.errors.length) {
+      const msg = validation.errors.map(er => `• ${er.message}`).join('<br/>');
+      chatPostAgent(`<b>Input validation error:</b><br/>${msg}`);
+      const first = validation.errors[0];
+      const idx = findRowIndexByLabel(rawAoa, first.label || '');
+      if (typeof idx === 'number' && idx >= 0) highlightAndCenterRow(inputsContainer, idx, 1);
+      return;
+    }
+
+    try {
+      const wb = {SheetNames:['Inputs'], Sheets:{}}; wb.Sheets['Inputs'] = aoaToSheetWithTypes(rawAoa);
+      const built = buildModelOutputSheet(rawAoa, wb);
+      currentWorkbook = built.wb; lastBuildDetails = built.details;
+      renderAssumptions(rawAoa, lastBuildDetails);
+      renderFormulaTemplates(lastBuildDetails);
+      renderFormulaGrid(currentWorkbook.Sheets['Model_Output'], lastBuildDetails);
+      const activeRow = lastBuildDetails.activeRow; const scenarioVal = rawAoa[activeRow][1] || 'Base';
+      previewTitle.textContent = `Finance Model Output Preview: ${scenarioVal}`;
+      previewNumeric.innerHTML = renderNumericPreview(rawAoa, lastBuildDetails, currentWorkbook.Sheets['Model_Output']);
+      midContent.removeAttribute('aria-hidden'); midContent.classList.remove('hidden');
+      document.getElementById('formulas-section').classList.remove('hidden');
+      document.getElementById('formula-grid-section').classList.remove('hidden');
+      document.getElementById('preview-section').classList.remove('hidden');
+      document.getElementById('btn-apply-formulas').disabled = false;
+      document.getElementById('btn-recompute-preview').disabled = false;
+      document.getElementById('btn-export').disabled = false;
+      setTimeout(()=> attachFormulaHoverHandlers(rawAoa),50);
+      chatPostAgent('Model_Output generated. AI-generated cells are tagged "AI-generated". Validate assumptions before external use.');
+    } catch (e) {
+      chatPostAgent('Generation failed: ' + e.message + '\nNote: system will not infer missing critical assumptions silently. Complete required Inputs and retry.');
+    }
+  }
+
+  function applyEditedFormulasToWorkbook(){
+    if (!currentWorkbook) { chatPostAgent('Please generate the model first via Chat ("generate").'); return; }
+    const ws = currentWorkbook.Sheets['Model_Output'];
+    const textareas = formulaGrid.querySelectorAll('textarea[data-addr]');
+    textareas.forEach(ta => {
+      const addr = ta.dataset.addr; let f = (ta.value||'').trim(); if (f.startsWith('=')) f = f.slice(1);
+      if (!ws[addr]) ws[addr] = {};
+      ws[addr].t = 'n'; ws[addr].f = f;
+      ws[addr].c = ws[addr].c || [];
+      const exists = ws[addr].c.some(cc => String(cc.a || '').toLowerCase() === 'ai' || String(cc.t || '').toLowerCase().includes('ai'));
+      if (!exists) ws[addr].c.push({a:'AI', t:'AI-generated'});
+    });
+    renderFormulaGrid(ws, lastBuildDetails);
+    previewNumeric.innerHTML = renderNumericPreview(rawAoa, lastBuildDetails, ws);
+    chatPostAgent('Applied edited formulas and updated preview. Cells remain tagged "AI-generated".');
+  }
+
+  function performRecovery(){
+    if (!lastBuildDetails) { chatPostAgent('No generated model to recover/clear.'); return; }
+    const map = extractSimpleInputCells(rawAoa); const horizon = parseInt(String(map['Model Time Horizon (Years)'].raw).replace(/\D/g,''),10) || 3;
+    const startingYear = parseInt(String(map['Starting Year'].raw).replace(/\D/g,''),10) || 2025;
+    const aoaModel = [['Year','Revenue','Cost','Profit','Cash Flow']]; for (let y=0;y<horizon;y++) aoaModel.push([startingYear+y, '', '', '', '']);
+    const ws = XLSX.utils.aoa_to_sheet(aoaModel); ws['!ref'] = `A1:E${1+horizon}`;
+    if (!currentWorkbook) currentWorkbook = {SheetNames:[], Sheets:{}}; currentWorkbook.Sheets['Model_Output'] = ws; if (!currentWorkbook.SheetNames.includes('Model_Output')) currentWorkbook.SheetNames.push('Model_Output');
+    renderFormulaGrid(ws, lastBuildDetails);
+    document.getElementById('preview-section').classList.remove('hidden');
+    previewTitle.textContent = `Finance Model Output Preview: ${rawAoa[lastBuildDetails.activeRow][1] || 'Base'}`;
+    previewNumeric.innerHTML = '<div class="note">Model_Output cleared (recovery). No formulas are present. Use "generate" to recreate formulas or edit cells manually.</div>';
+    chatPostAgent('Recovery complete: Model_Output formulas cleared; preview shows empty model. You can "generate" again or edit formulas manually.');
+  }
+
+  /* ---------- UX helpers ---------- */
+  function clearHighlights(container){ const prev = container.querySelectorAll('.highlight'); prev.forEach(el=>el.classList.remove('highlight')); }
+  function highlightAndCenterRow(container, row, col){
+    clearHighlights(container);
+    const valSpan = container.querySelector(`.cell-span[data-row="${row}"][data-col="${col}"]`);
+    if (!valSpan) return;
+    valSpan.classList.add('highlight');
+    const labelSpan = container.querySelector(`.cell-span[data-row="${row}"][data-col="0"]`);
+    if (labelSpan) labelSpan.classList.add('highlight');
+    const tr = valSpan.closest('tr');
+    if (tr) { const rowNumCell = tr.querySelector('.row-num'); if (rowNumCell) rowNumCell.classList.add('highlight'); }
+    const inputsPane = document.getElementById('inputs-container');
+    if (inputsPane) {
+      try { valSpan.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'}); } catch(e){
+        const parentRect = inputsPane.getBoundingClientRect(); const selRect = valSpan.getBoundingClientRect();
+        inputsPane.scrollTop += (selRect.top - parentRect.top) - (inputsPane.clientHeight/2) + (selRect.height/2);
+      }
+    }
+  }
+
+  function attachFormulaHoverHandlers(aoa){
+    const blocks = document.querySelectorAll('.formula-block'); blocks.forEach(bl=>{
+      bl.addEventListener('mouseenter', ()=> {
+        clearHighlights(document.getElementById('inputs-container'));
+        if (!lastBuildDetails) return; const key = bl.dataset.key; const details = lastBuildDetails; const toHighlight=[];
+        if (key.startsWith('revenue')){ if (typeof details.initialRevenueRow==='number'&&details.initialRevenueRow>=0) toHighlight.push(details.initialRevenueRow); if (typeof details.activeRow==='number'&&details.activeRow>=0) toHighlight.push(details.activeRow); }
+        else if (key==='cost'){ if (typeof details.grossMarginRow==='number'&&details.grossMarginRow>=0) toHighlight.push(details.grossMarginRow); }
+        else if (key==='profit'){ if (typeof details.grossMarginRow==='number'&&details.grossMarginRow>=0) toHighlight.push(details.grossMarginRow); if (typeof details.opexRow==='number'&&details.opexRow>=0) toHighlight.push(details.opexRow); }
+        else if (key==='cash'){ if (typeof details.taxRow==='number'&&details.taxRow>=0) toHighlight.push(details.taxRow); }
+        if (toHighlight.length>0) highlightAndCenterRow(document.getElementById('inputs-container'), toHighlight[0], 1);
+      });
+      bl.addEventListener('mouseleave', ()=> clearHighlights(document.getElementById('inputs-container')));
+    });
+    const gridTextareas = document.querySelectorAll('textarea[data-addr]'); gridTextareas.forEach(ta=>{
+      ta.addEventListener('mouseenter', ()=> {
+        clearHighlights(document.getElementById('inputs-container'));
+        const txt = ta.value||''; const matches = Array.from(txt.matchAll(/([A-Za-z_0-9]+)!\$?([A-Z]+)\$?([0-9]+)/g));
+        matches.forEach(m=>{ const sheet = m[1], col=m[2], row=parseInt(m[3],10); if (sheet.toLowerCase()==='inputs') highlightAndCenterRow(document.getElementById('inputs-container'), row-1, 1); });
+      });
+      ta.addEventListener('mouseleave', ()=> clearHighlights(document.getElementById('inputs-container')));
+    });
+  }
+
+  /* ---------- LLM Table Parser ---------- */
+  function parseLLMTable(text) {
+    if (!text || typeof text !== 'string') return null;
+
+    // Try JSON format first
+    const jsonResult = parseJSONTable(text);
+    if (jsonResult) return jsonResult;
+
+    // Try Markdown table format
+    const markdownResult = parseMarkdownTable(text);
+    if (markdownResult) return markdownResult;
+
+    // Try CSV format
+    const csvResult = parseCSVTable(text);
+    if (csvResult) return csvResult;
+
+    // Try tab-separated format
+    const tabResult = parseTabTable(text);
+    if (tabResult) return tabResult;
+
+    // Try aligned text format
+    const alignedResult = parseAlignedTable(text);
+    if (alignedResult) return alignedResult;
+
+    return null;
+  }
+
+  function parseJSONTable(text) {
+    // Extract JSON from markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : text.trim();
+
+    try {
+      const data = JSON.parse(jsonStr);
+      // Support formats: {data: [[...], ...], headers: [...]} or just [[...], ...]
+      if (Array.isArray(data) && data.length > 0) {
+        return {
+          headers: data[0].map((_, i) => `Column ${i + 1}`),
+          rows: data,
+          format: 'json',
+          rawText: text
+        };
+      }
+      if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+        return {
+          headers: data.headers || data.data[0].map((_, i) => `Column ${i + 1}`),
+          rows: data.data,
+          format: 'json',
+          rawText: text
+        };
+      }
+    } catch (e) {
+      // Not valid JSON
+    }
+    return null;
+  }
+
+  function parseMarkdownTable(text) {
+    // Find markdown table blocks (lines starting with |)
+    const lines = text.split('\n');
+    let tableStart = -1;
+    let tableEnd = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('|') && line.endsWith('|')) {
+        if (tableStart === -1) tableStart = i;
+        tableEnd = i;
+      } else if (tableStart !== -1) {
+        break; // End of table
+      }
+    }
+
+    if (tableStart === -1) return null;
+
+    const tableLines = lines.slice(tableStart, tableEnd + 1);
+    const rows = [];
+
+    for (let i = 0; i < tableLines.length; i++) {
+      const line = tableLines[i].trim();
+      // Skip separator line (e.g., |---|---|)
+      if (/^\|[\s\-|:]+\|$/.test(line)) continue;
+
+      // Remove leading/trailing | and split by |
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      if (cells.length > 0) {
+        rows.push(cells);
+      }
+    }
+
+    if (rows.length < 2) return null; // Need at least header + 1 data row
+
+    return {
+      headers: rows[0],
+      rows: rows.slice(1),
+      format: 'markdown',
+      rawText: text
+    };
+  }
+
+  function parseCSVTable(text) {
+    // Extract CSV from markdown code blocks or find CSV-like content
+    const csvMatch = text.match(/```(?:csv)?\s*([\s\S]*?)```/);
+    const csvStr = csvMatch ? csvMatch[1] : text.trim();
+
+    // Check if it looks like CSV (commas, multiple lines)
+    const lines = csvStr.split('\n').filter(l => l.trim() !== '');
+    if (lines.length < 2) return null;
+
+    const rows = [];
+    for (const line of lines) {
+      // Parse CSV handling quoted fields
+      const cells = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cells.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cells.push(current.trim());
+      rows.push(cells);
+    }
+
+    // Check if we have consistent columns
+    const colCount = rows[0].length;
+    if (colCount < 2) return null;
+    const validRows = rows.filter(r => r.length >= colCount - 1);
+    if (validRows.length < 2) return null;
+
+    return {
+      headers: rows[0],
+      rows: rows.slice(1),
+      format: 'csv',
+      rawText: text
+    };
+  }
+
+  function parseTabTable(text) {
+    const lines = text.split('\n').filter(l => l.trim() !== '');
+    if (lines.length < 2) return null;
+
+    const rows = lines.map(line => line.split('\t').map(c => c.trim()).filter(c => c !== ''));
+
+    // Check if we have consistent columns
+    const colCount = Math.max(...rows.map(r => r.length));
+    if (colCount < 2) return null;
+    const validRows = rows.filter(r => r.length >= colCount - 1);
+    if (validRows.length < 2) return null;
+
+    return {
+      headers: rows[0],
+      rows: rows.slice(1),
+      format: 'tab',
+      rawText: text
+    };
+  }
+
+  function parseAlignedTable(text) {
+    // Try to detect aligned text tables (columns separated by spaces)
+    const lines = text.split('\n').filter(l => l.trim() !== '');
+    if (lines.length < 2) return null;
+
+    // Look for blocks where columns are aligned
+    // Find potential table by looking for consistent gaps
+    let tableStart = -1;
+    let tableEnd = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Skip if line is too short or doesn't have multiple words
+      const words = line.trim().split(/\s+/);
+      if (words.length < 3) {
+        if (tableStart !== -1) break;
+        continue;
+      }
+
+      if (tableStart === -1) tableStart = i;
+      tableEnd = i;
+    }
+
+    if (tableStart === -1) return null;
+
+    const tableLines = lines.slice(tableStart, tableEnd + 1);
+
+    // Analyze column positions
+    const firstLine = tableLines[0];
+    const colPositions = [];
+    let inGap = true;
+
+    for (let i = 0; i < firstLine.length; i++) {
+      const isSpace = firstLine[i] === ' ' || firstLine[i] === '\t';
+      if (inGap && !isSpace) {
+        colPositions.push(i);
+        inGap = false;
+      } else if (!inGap && isSpace) {
+        inGap = true;
+      }
+    }
+
+    if (colPositions.length < 2) return null;
+
+    // Parse lines based on column positions
+    const rows = [];
+    for (const line of tableLines) {
+      const cells = [];
+      for (let i = 0; i < colPositions.length; i++) {
+        const start = colPositions[i];
+        const end = i < colPositions.length - 1 ? colPositions[i + 1] : line.length;
+        cells.push(line.slice(start, end).trim());
+      }
+      rows.push(cells.filter(c => c !== ''));
+    }
+
+    if (rows.length < 2) return null;
+
+    return {
+      headers: rows[0],
+      rows: rows.slice(1),
+      format: 'aligned',
+      rawText: text
+    };
+  }
+
+  /* ---------- LLM Table Renderer ---------- */
+  function renderLLMTableToPreview(tableData, title = 'LLM Finance Model Output') {
+    if (!tableData || !tableData.headers || !tableData.rows || tableData.rows.length === 0) {
+      return { html: '', title: '', rowCount: 0, nonTableText: '' };
+    }
+
+    // Extract non-table text from raw text
+    let nonTableText = tableData.rawText || '';
+
+    // Remove table patterns to get the text only
+    if (tableData.format === 'markdown') {
+      nonTableText = nonTableText.replace(/\|[\s\S]*?\|/g, '').replace(/---+/g, '');
+    } else if (tableData.format === 'json') {
+      nonTableText = nonTableText.replace(/```(?:json)?\s*[\s\S]*?```/g, '');
+    } else if (tableData.format === 'csv') {
+      nonTableText = nonTableText.replace(/```(?:csv)?\s*[\s\S]*?```/g, '');
+    }
+
+    nonTableText = nonTableText.replace(/```[\s\S]*?```/g, '').trim();
+
+    // Format number cells with thousand separators
+    const formatCell = (value) => {
+      const str = String(value).trim();
+      // Try to parse as number
+      const num = parseFloat(str.replace(/,/g, ''));
+      if (!isNaN(num) && str.match(/^\d+([,.]\d+)*$/)) {
+        return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+      return str;
+    };
+
+    // Build HTML table - use same style as local "generate" command
+    let html = '<table><thead><tr>';
+    tableData.headers.forEach(h => {
+      html += `<th>${h}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    tableData.rows.forEach(row => {
+      html += '<tr>';
+      for (let i = 0; i < Math.min(tableData.headers.length, row.length); i++) {
+        html += `<td>${formatCell(row[i])}</td>`;
+      }
+      // Handle cells beyond headers
+      for (let i = tableData.headers.length; i < row.length; i++) {
+        html += `<td>${formatCell(row[i])}</td>`;
+      }
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    return {
+      html: html,
+      title: title,
+      rowCount: tableData.rows.length,
+      nonTableText: nonTableText
+    };
+  }
+
+  /* ---------- Chat / command handling ---------- */
+  const chatBody = document.getElementById('chat-body'), chatInput = document.getElementById('chat-input'), chatSend = document.getElementById('chat-send');
+  function chatPostUser(text){ const d=document.createElement('div'); d.className='msg user'; d.textContent=text; chatBody.appendChild(d); chatBody.scrollTop=chatBody.scrollHeight; }
+  function chatPostAgent(text){ const d=document.createElement('div'); d.className='msg agent'; d.innerHTML = text.replace(/\n/g,'<br/>'); chatBody.appendChild(d); chatBody.scrollTop=chatBody.scrollHeight; }
+
+  async function agentProcess(prompt){
+    const p = String(prompt || '').toLowerCase();
+
+    // Handle "generate" command - uses local model builder
+    if (p.includes('generate') || (p.includes('3-year') && p.includes('model'))){
+      collectInputsToRawAoa();
+      const inputsContext = getInputsContextString(rawAoa);
+
+      // Try to get LLM confirmation first
+      try {
+        const llmResponse = await callOpenAI(
+          `The user wants to generate a financial model. Based on these inputs, provide a brief (2-3 sentences) confirmation of what model will be created:\n\n${inputsContext}`,
+          inputsContext
+        );
+        chatPostAgent(llmResponse);
+      } catch (e) {
+        chatPostAgent(`<i>(LLM unavailable: ${e.message})</i><br/>Generating model from Inputs...`);
+      }
+
+      rebuildAllAndShowMid();
+      return;
+    }
+
+    // Handle "verify" command - uses local verification
+    if (p.includes('verify') || p.includes('verification')) {
+      collectInputsToRawAoa();
+      const validation = validateInputs(rawAoa);
+      if (validation.errors.length) {
+        const msg = validation.errors.map(er => `• ${er.message}`).join('<br/>');
+        chatPostAgent(`<b>Input validation error:</b><br/>${msg}`);
+        const first = validation.errors[0];
+        const idx = findRowIndexByLabel(rawAoa, first.label || '');
+        if (typeof idx === 'number' && idx >= 0) highlightAndCenterRow(inputsContainer, idx, 1);
+        return;
+      }
+      if (!currentWorkbook || !lastBuildDetails) { chatPostAgent('No generated model to verify. Please send "generate".'); return; }
+      chatPostAgent('Starting step-by-step verification (local)...');
+      performVerificationAndShowSteps();
+      return;
+    }
+
+    // Handle "recover" command
+    if (p.includes('recover') || p.includes('recovery') || p.includes('clear')){
+      performRecovery();
+      return;
+    }
+
+    // For all other queries, use OpenAI LLM
+    collectInputsToRawAoa();
+    const inputsContext = getInputsContextString(rawAoa);
+
+    try {
+      const llmResponse = await callOpenAI(prompt, inputsContext);
+
+      // Try to parse table data from LLM response
+      const tableData = parseLLMTable(llmResponse);
+      if (tableData && tableData.rows.length > 0) {
+        // Render table to preview section
+        const rendered = renderLLMTableToPreview(tableData, 'Finance Model Output Preview');
+
+        // Show preview section
+        document.getElementById('preview-section').classList.remove('hidden');
+        previewTitle.textContent = rendered.title;
+        previewNumeric.innerHTML = rendered.html;
+
+        // Remove aria-hidden to make content accessible
+        midContent.removeAttribute('aria-hidden');
+
+        // Post success message in chat
+        if (rendered.nonTableText) {
+          chatPostAgent(rendered.nonTableText);
+        }
+        chatPostAgent(`<i>Table extracted (${rendered.rowCount} rows) and displayed in Preview section.</i>`);
+      } else {
+        // No table found, display as regular text
+        chatPostAgent(llmResponse);
+      }
+    } catch (e) {
+      chatPostAgent(`<b>Error:</b> ${e.message}<br/><br/>For offline commands, try: "generate", "verify", or "recover".`);
+    }
+  }
+
+  function performVerificationAndShowSteps(){
+    if (!currentWorkbook || !lastBuildDetails) { chatPostAgent('No generated model to verify.'); return; }
+    const ws = currentWorkbook.Sheets['Model_Output']; const aoa = rawAoa; const details = lastBuildDetails;
+    const horizon = details.horizon; const startRow = 2;
+    const inputsMap = {};
+    for (let r=0;r<aoa.length;r++){ const val = aoa[r][1]; const p = parseValueToTyped(val); inputsMap[`Inputs!$B$${r+1}`] = p.t==='n'? p.v : val; inputsMap[`Inputs!B${r+1}`] = inputsMap[`Inputs!$B$${r+1}`]; inputsMap[`Inputs!$A$${r+1}`] = aoa[r][0]; inputsMap[`Inputs!A${r+1}`] = aoa[r][0]; }
+    function vlookupSim(lookupVal, rangeA1){ const m = rangeA1.match(/([^!]+)!\$?([A-Z]+)\$?([0-9]+):\$?([A-Z]+)\$?([0-9]+)/); if(!m) return 0; const sheet=m[1]; const rowStart=parseInt(m[3],10), rowEnd=parseInt(m[5],10); for (let r=rowStart;r<=rowEnd;r++){ const name = inputsMap[`${sheet}!A${r}`] || inputsMap[`${sheet}!$A$${r}`]; if (String(name).trim()===String(lookupVal).trim()){ const v = inputsMap[`${sheet}!B${r}`] || inputsMap[`${sheet}!$B$${r}`]; const parsed = parseValueToTyped(v); return parsed.t==='n'? parsed.v : 0; } } return 0; }
+    function substituteFormulaToNumeric(formula, modelValues){ if (!formula) return {expr:'', value:0}; let expr = formula.startsWith('=')? formula.slice(1): formula;
+      expr = expr.replace(/VLOOKUP\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*2\s*,\s*FALSE\s*\)/ig, function(_, lookupArg, rangeArg){
+        let lookupVal = lookupArg.trim(); if (/^["'].*["']$/.test(lookupVal)) lookupVal = lookupVal.slice(1,-1);
+        if (/^[A-Za-z_0-9]+!\$?[A-Z]+\$?[0-9]+$/.test(lookupVal)){ const v = inputsMap[lookupVal] !== undefined ? inputsMap[lookupVal] : lookupVal; lookupVal = v; }
+        return vlookupSim(lookupVal, rangeArg) || 0;
+      });
+      expr = expr.replace(/([A-Za-z_0-9]+)!\$?([A-Z]+)\$?([0-9]+)/g, function(_, sheet, col, row){ const a1 = `${sheet}!$${col}$${row}`, a2 = `${sheet}!${col}${row}`; const v = inputsMap[a1] !== undefined ? inputsMap[a1] : inputsMap[a2]; const parsed = parseValueToTyped(v); return parsed.t==='n'? parsed.v : 0; });
+      expr = expr.replace(/([A-Z]+)(\d+)/g, function(_, col, row){ const key = `${col}${row}`; return modelValues[key] !== undefined ? modelValues[key] : 0; });
+      const sanitized = expr.replace(/,/g,''); let value = 0; try{ if(/^[0-9\.\+\-\*\/\(\)\s]+$/.test(sanitized)){ value = Function('"use strict";return (' + sanitized + ')')(); if (isNaN(value)) value=0; } else value = 0; } catch(e){ value=0; } return {expr, value};
+    }
+    chatPostAgent('Verification steps:');
+    const modelValues = {};
+    for (let i=0;i<horizon;i++){
+      const rowNum = startRow + i;
+      chatPostAgent(`<b>Year ${i+1} (${ ws[XLSX.utils.encode_cell({r:rowNum-1,c:0})] ? ws[XLSX.utils.encode_cell({r:rowNum-1,c:0})].v : '' })</b>`);
+      const addrB = XLSX.utils.encode_cell({r:rowNum-1,c:1}); const fB = ws[addrB] && ws[addrB].f ? (ws[addrB].f.startsWith('=')? ws[addrB].f.slice(1): ws[addrB].f) : '';
+      const subB = substituteFormulaToNumeric(fB, modelValues); chatPostAgent(`Revenue formula: <code>${fB}</code><br>Substituted: <code>${subB.expr}</code><br>Result: <b>${Number(subB.value).toLocaleString()}</b>`); modelValues[`B${rowNum}`] = subB.value;
+      const addrC = XLSX.utils.encode_cell({r:rowNum-1,c:2}); const fC = ws[addrC] && ws[addrC].f ? (ws[addrC].f.startsWith('=')? ws[addrC].f.slice(1): ws[addrC].f) : '';
+      const subC = substituteFormulaToNumeric(fC, modelValues); chatPostAgent(`Cost formula: <code>${fC}</code><br>Substituted: <code>${subC.expr}</code><br>Result: <b>${Number(subC.value).toLocaleString()}</b>`); modelValues[`C${rowNum}`] = subC.value;
+      const addrD = XLSX.utils.encode_cell({r:rowNum-1,c:3}); const fD = ws[addrD] && ws[addrD].f ? (ws[addrD].f.startsWith('=')? ws[addrD].f.slice(1): ws[addrD].f) : '';
+      const subD = substituteFormulaToNumeric(fD, modelValues); chatPostAgent(`Profit formula: <code>${fD}</code><br>Substituted: <code>${subD.expr}</code><br>Result: <b>${Number(subD.value).toLocaleString()}</b>`); modelValues[`D${rowNum}`] = subD.value;
+      const addrE = XLSX.utils.encode_cell({r:rowNum-1,c:4}); const fE = ws[addrE] && ws[addrE].f ? (ws[addrE].f.startsWith('=')? ws[addrE].f.slice(1): ws[addrE].f) : '';
+      const subE = substituteFormulaToNumeric(fE, modelValues); chatPostAgent(`Cash Flow formula: <code>${fE}</code><br>Substituted: <code>${subE.expr}</code><br>Result: <b>${Number(subE.value).toLocaleString()}</b>`); modelValues[`E${rowNum}`] = subE.value;
+    }
+    chatPostAgent('Verification complete. Validate before external use.');
+  }
+
+  /* ---------- Wiring ---------- */
+  document.getElementById('btn-apply-formulas').addEventListener('click', ()=> applyEditedFormulasToWorkbook());
+  document.getElementById('btn-recompute-preview').addEventListener('click', ()=> {
+    collectInputsToRawAoa();
+    const validation = validateInputs(rawAoa);
+    if (validation.errors.length) {
+      const msg = validation.errors.map(er => `• ${er.message}`).join('<br/>');
+      chatPostAgent(`<b>Input validation error:</b><br/>${msg}`);
+      const first = validation.errors[0];
+      const idx = findRowIndexByLabel(rawAoa, first.label || '');
+      if (typeof idx === 'number' && idx >= 0) highlightAndCenterRow(inputsContainer, idx, 1);
+      return;
+    }
+    if (!currentWorkbook || !currentWorkbook.Sheets['Model_Output'] || !hasAnyFormula(currentWorkbook.Sheets['Model_Output'])) {
+      chatPostAgent('No Model_Output formulas present. Use "generate" in chat to create formulas (formulas-only) or edit formulas manually in the Model_Output editor.');
+      return;
+    }
+    try {
+      const activeIdx = lastBuildDetails.activeRow;
+      const scenarioVal = rawAoa[activeIdx][1] || 'Base';
+      previewTitle.textContent = `Finance Model Output Preview: ${scenarioVal}`;
+      previewNumeric.innerHTML = renderNumericPreview(rawAoa, lastBuildDetails, currentWorkbook.Sheets['Model_Output']);
+      renderAssumptions(rawAoa, lastBuildDetails);
+      chatPostAgent('Preview recomputed with latest Inputs.');
+    } catch (e) {
+      chatPostAgent('Recompute failed: ' + e.message);
+    }
+  });
+
+  document.getElementById('btn-export').addEventListener('click', ()=> {
+    collectInputsToRawAoa();
+    try {
+      const wb = {SheetNames:['Inputs'], Sheets:{}}; wb.Sheets['Inputs'] = aoaToSheetWithTypes(rawAoa);
+      if (!currentWorkbook || !currentWorkbook.Sheets['Model_Output']){ const built = buildModelOutputSheet(rawAoa, wb); wb.Sheets['Model_Output'] = built.wb.Sheets['Model_Output']; }
+      else { wb.SheetNames.push('Model_Output'); wb.Sheets['Model_Output'] = currentWorkbook.Sheets['Model_Output']; }
+      const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+      const blob = new Blob([wbout], {type:'application/octet-stream'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='Financial_Model_Output.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      chatPostAgent('Export successful: Financial_Model_Output.xlsx (AI tags stored as cell comments).');
+    } catch (e) { chatPostAgent('Export failed: ' + e.message); }
+  });
+
+  document.getElementById('chat-send').addEventListener('click', ()=> {
+    const text = chatInput.value.trim(); if (!text) return; chatPostUser(text); chatInput.value = ''; setTimeout(()=> agentProcess(text), 200);
+  });
+  chatInput.addEventListener('keydown', e=>{ if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('chat-send').click(); } });
+
+  // initial render
+  inputsContainer.innerHTML = ''; inputsContainer.appendChild(renderInputsTableWithHeaders(rawAoa));
+  chatPostAgent('Hello — Financial Agent with <b>OpenAI GPT-4 Integration</b>.<br/><br/>' +
+    '<b>To enable AI chat:</b> Enter your OpenAI API Key in the toolbar above.<br/><br/>' +
+    '<b>Commands:</b><br/>' +
+    '• "generate" - Create a financial model from inputs<br/>' +
+    '• "verify" - Step-by-step verification of calculations<br/>' +
+    '• "recover" - Clear and reset the model<br/><br/>' +
+    '<b>With API Key:</b> Ask any financial question and get AI-powered analysis!<br/><br/>' +
+    '<i>Note: Validate results before external use.</i>');
+
+  // debug
+  window._rebuildAllAndShowMid = rebuildAllAndShowMid;
+  window._rawAoa = rawAoa;
+  </script>
+</body>
+</html>
