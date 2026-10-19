@@ -2,7 +2,7 @@
 
 **Wu Kun ([wukun2005@gmail.com](mailto:wukun2005@gmail.com)), Jan. 2026**
 
-## Demo: [DemoVideo.mp4](https://1drv.ms/v/c/203d7a34c28a5187/IQBp1-UH8gl9SqjJkJ520d9JAad6qSS1ImpMMigcVgaSxGA?e=LoYmlk)
+## Demo: [Demo Video](https://www.bilibili.com/video/BV1JGnE6zEow/)
 
 ## 0\. Motivation
 
@@ -309,7 +309,7 @@ The alternative flow sample can be found in [Appendix 2: Alternative Happy Path 
 * Clear disclaimer: “This model is for planning support, not financial advice”.  
 * Encourage user validation before external use.
 
-## 5\. Demo: [DemoVideo.mp4](https://1drv.ms/v/c/203d7a34c28a5187/IQBp1-UH8gl9SqjJkJ520d9JAad6qSS1ImpMMigcVgaSxGA?e=LoYmlk)
+## 5\. Demo: [Demo Video](https://www.bilibili.com/video/BV1JGnE6zEow/)
 
 ### ![][image1]5.1 Demo Flow
 
